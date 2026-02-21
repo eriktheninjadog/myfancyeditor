@@ -12,6 +12,9 @@
 /* Escape-sequence raw buffer: up to 3 bytes + null terminator */
 #define RAW_KEY_BUF_SIZE 4
 
+/* Name of the designated macro buffer */
+#define MACRO_BUFFER_NAME "*macro*"
+
 /* Forward declarations for minibuf callbacks */
 static void cb_find_file(Editor *e, const char *input);
 static void cb_switch_buffer(Editor *e, const char *input);
@@ -20,6 +23,24 @@ static void cb_mx_command(Editor *e, const char *input);
 static void cb_find(Editor *e, const char *input);
 static void cb_find_for_replace(Editor *e, const char *input);
 static void cb_replace_with(Editor *e, const char *input);
+
+/* Run the *macro* buffer as JavaScript */
+static void run_macro(Editor *e) {
+    Buffer *macro_buf = editor_find_buffer(e, MACRO_BUFFER_NAME);
+    if (!macro_buf) {
+        macro_buf = editor_new_buffer(e, MACRO_BUFFER_NAME);
+        if (macro_buf) {
+            e->current_buffer = e->num_buffers - 1;
+            editor_set_message(e, "Created %s buffer — write JS and run again", MACRO_BUFFER_NAME);
+        } else {
+            editor_set_message(e, "Could not create %s buffer", MACRO_BUFFER_NAME);
+        }
+    } else {
+        char result[512] = {0};
+        script_eval_buffer(e->js_ctx, macro_buf, result, sizeof(result));
+        editor_set_message(e, "Macro: %s", result);
+    }
+}
 
 static void cb_find_file(Editor *e, const char *input) {
     editor_open_file(e, input);
@@ -137,6 +158,16 @@ static void cb_mx_command(Editor *e, const char *input) {
         editor_start_minibuf(e, "Find: ", cb_find);
     } else if (strcmp(input, "replace") == 0) {
         editor_start_minibuf(e, "Find: ", cb_find_for_replace);
+    } else if (strcmp(input, "run") == 0) {
+        if (!buf) {
+            editor_set_message(e, "No buffer");
+        } else {
+            char result[512] = {0};
+            script_eval_buffer(e->js_ctx, buf, result, sizeof(result));
+            editor_set_message(e, "JS: %s", result);
+        }
+    } else if (strcmp(input, "run-macro") == 0) {
+        run_macro(e);
     } else {
         editor_set_message(e, "Unknown command: %s", input);
     }
@@ -202,6 +233,10 @@ static void handle_ctrl_x_key(Editor *e, int key) {
     case 's':
         shell_buf_create(e, "/bin/bash");
         editor_set_message(e, "Opened shell buffer");
+        break;
+    case 'e':
+        /* C-x e: run-macro (evaluate *macro* buffer as JavaScript) */
+        run_macro(e);
         break;
     case '2':
         editor_set_message(e, "Window splitting not yet implemented");
