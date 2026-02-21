@@ -40,16 +40,20 @@ void buffer_destroy(Buffer *buf) {
     free(buf);
 }
 
-static void buffer_grow(Buffer *buf) {
+static int buffer_grow(Buffer *buf) {
     if (buf->num_lines >= buf->capacity) {
-        buf->capacity *= 2;
-        buf->lines = realloc(buf->lines, sizeof(char *) * buf->capacity);
+        int new_cap = buf->capacity * 2;
+        char **tmp = realloc(buf->lines, sizeof(char *) * new_cap);
+        if (!tmp) return -1;
+        buf->lines = tmp;
+        buf->capacity = new_cap;
     }
+    return 0;
 }
 
 void buffer_ensure_line(Buffer *buf, int line) {
     while (buf->num_lines <= line) {
-        buffer_grow(buf);
+        if (buffer_grow(buf) != 0) return;
         buf->lines[buf->num_lines++] = strdup("");
     }
 }
@@ -73,7 +77,7 @@ void buffer_insert_char(Buffer *buf, char c) {
         cur_line[col] = '\0';
 
         /* Make room for new line */
-        buffer_grow(buf);
+        if (buffer_grow(buf) != 0) { free(rest); return; }
         /* Shift lines down */
         memmove(&buf->lines[buf->cursor_line + 2],
                 &buf->lines[buf->cursor_line + 1],
@@ -237,8 +241,11 @@ int buffer_load_file(Buffer *buf, const char *filename) {
         }
         /* Grow lines array if needed */
         if (buf->num_lines >= buf->capacity) {
-            buf->capacity *= 2;
-            buf->lines = realloc(buf->lines, sizeof(char *) * buf->capacity);
+            int new_cap = buf->capacity * 2;
+            char **tmp = realloc(buf->lines, sizeof(char *) * new_cap);
+            if (!tmp) { fclose(f); return -1; }
+            buf->lines = tmp;
+            buf->capacity = new_cap;
         }
         buf->lines[buf->num_lines++] = strdup(linebuf);
     }
@@ -283,8 +290,11 @@ void buffer_append_string(Buffer *buf, const char *str) {
             /* Move to next line */
             buf->cursor_line = buf->num_lines;
             if (buf->num_lines >= buf->capacity) {
-                buf->capacity *= 2;
-                buf->lines = realloc(buf->lines, sizeof(char *) * buf->capacity);
+                int new_cap = buf->capacity * 2;
+                char **tmp = realloc(buf->lines, sizeof(char *) * new_cap);
+                if (!tmp) return;
+                buf->lines = tmp;
+                buf->capacity = new_cap;
             }
             buf->lines[buf->num_lines++] = strdup("");
             buf->cursor_col = 0;

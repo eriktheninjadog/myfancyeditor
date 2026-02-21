@@ -63,8 +63,11 @@ static void cb_mx_command(Editor *e, const char *input) {
                              e->buffers[i]->filename);
                 }
                 if (lb->num_lines >= lb->capacity) {
-                    lb->capacity *= 2;
-                    lb->lines = realloc(lb->lines, sizeof(char *) * lb->capacity);
+                    int new_cap = lb->capacity * 2;
+                    char **tmp = realloc(lb->lines, sizeof(char *) * new_cap);
+                    if (!tmp) break;
+                    lb->lines = tmp;
+                    lb->capacity = new_cap;
                 }
                 lb->lines[lb->num_lines++] = strdup(line);
             }

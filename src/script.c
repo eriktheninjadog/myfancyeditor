@@ -79,10 +79,13 @@ static duk_ret_t js_get_buffer_content(duk_context *ctx) {
     Buffer *buf = editor_current_buffer(e);
     if (!buf) { duk_push_string(ctx, ""); return 1; }
 
-    /* Compute total size */
+    /* Compute total size, guarding against overflow */
     size_t total = 0;
-    for (int i = 0; i < buf->num_lines; i++)
-        total += strlen(buf->lines[i]) + 1;
+    for (int i = 0; i < buf->num_lines; i++) {
+        size_t llen = strlen(buf->lines[i]) + 1;
+        if (total + llen < total) { duk_push_string(ctx, ""); return 1; } /* overflow */
+        total += llen;
+    }
 
     char *content = malloc(total + 1);
     if (!content) { duk_push_string(ctx, ""); return 1; }
