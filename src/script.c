@@ -162,6 +162,65 @@ static duk_ret_t js_get_current_col(duk_context *ctx) {
     return 1;
 }
 
+/* editor.setMark() */
+static duk_ret_t js_set_mark(duk_context *ctx) {
+    Editor *e = get_editor(ctx);
+    if (!e) return 0;
+    Buffer *buf = editor_current_buffer(e);
+    if (buf) buffer_set_mark(buf);
+    return 0;
+}
+
+/* editor.copyRegion() -- copy region into kill ring */
+static duk_ret_t js_copy_region(duk_context *ctx) {
+    Editor *e = get_editor(ctx);
+    if (!e) return 0;
+    Buffer *buf = editor_current_buffer(e);
+    if (buf) buffer_copy_region(buf, &e->kill_ring);
+    return 0;
+}
+
+/* editor.killRegion() -- cut region into kill ring */
+static duk_ret_t js_kill_region(duk_context *ctx) {
+    Editor *e = get_editor(ctx);
+    if (!e) return 0;
+    Buffer *buf = editor_current_buffer(e);
+    if (buf) buffer_kill_region(buf, &e->kill_ring);
+    return 0;
+}
+
+/* editor.yank() -- paste from kill ring */
+static duk_ret_t js_yank(duk_context *ctx) {
+    Editor *e = get_editor(ctx);
+    if (!e) return 0;
+    Buffer *buf = editor_current_buffer(e);
+    if (buf) buffer_yank(buf, e->kill_ring);
+    return 0;
+}
+
+/* editor.find(query) -- search forward; returns true if found */
+static duk_ret_t js_find(duk_context *ctx) {
+    const char *query = duk_require_string(ctx, 0);
+    Editor *e = get_editor(ctx);
+    if (!e) { duk_push_boolean(ctx, 0); return 1; }
+    Buffer *buf = editor_current_buffer(e);
+    if (!buf) { duk_push_boolean(ctx, 0); return 1; }
+    duk_push_boolean(ctx, buffer_search_forward(buf, query));
+    return 1;
+}
+
+/* editor.replace(search, replacement) -- replace all; returns count */
+static duk_ret_t js_replace(duk_context *ctx) {
+    const char *search      = duk_require_string(ctx, 0);
+    const char *replacement = duk_require_string(ctx, 1);
+    Editor *e = get_editor(ctx);
+    if (!e) { duk_push_int(ctx, 0); return 1; }
+    Buffer *buf = editor_current_buffer(e);
+    if (!buf) { duk_push_int(ctx, 0); return 1; }
+    duk_push_int(ctx, buffer_replace_all(buf, search, replacement));
+    return 1;
+}
+
 duk_context *script_init(Editor *e) {
     duk_context *ctx = duk_create_heap_default();
     if (!ctx) return NULL;
@@ -188,6 +247,12 @@ duk_context *script_init(Editor *e) {
         { "saveFile",             js_save_file            },
         { "getCurrentLine",       js_get_current_line     },
         { "getCurrentCol",        js_get_current_col      },
+        { "setMark",              js_set_mark             },
+        { "copyRegion",           js_copy_region          },
+        { "killRegion",           js_kill_region          },
+        { "yank",                 js_yank                 },
+        { "find",                 js_find                 },
+        { "replace",              js_replace              },
         { NULL, NULL }
     };
 

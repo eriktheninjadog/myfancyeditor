@@ -17,6 +17,9 @@ static void cb_find_file(Editor *e, const char *input);
 static void cb_switch_buffer(Editor *e, const char *input);
 static void cb_kill_buffer(Editor *e, const char *input);
 static void cb_mx_command(Editor *e, const char *input);
+static void cb_find(Editor *e, const char *input);
+static void cb_find_for_replace(Editor *e, const char *input);
+static void cb_replace_with(Editor *e, const char *input);
 
 static void cb_find_file(Editor *e, const char *input) {
     editor_open_file(e, input);
@@ -37,7 +40,38 @@ static void cb_kill_buffer(Editor *e, const char *input) {
     editor_set_message(e, "No buffer named: %s", input);
 }
 
+/* --- find / find-and-replace callbacks --- */
+
+/* Holds the search term between the two prompts of find-and-replace. */
+static char s_find_search_term[512];
+
+static void cb_find(Editor *e, const char *input) {
+    if (!input || !*input) { editor_set_message(e, "No search term"); return; }
+    Buffer *buf = editor_current_buffer(e);
+    if (!buf) return;
+    if (buffer_search_forward(buf, input)) {
+        editor_set_message(e, "Found: %s", input);
+    } else {
+        editor_set_message(e, "Not found: %s", input);
+    }
+}
+
+static void cb_replace_with(Editor *e, const char *replacement) {
+    Buffer *buf = editor_current_buffer(e);
+    if (!buf) return;
+    int n = buffer_replace_all(buf, s_find_search_term, replacement);
+    editor_set_message(e, "Replaced %d occurrence(s)", n);
+}
+
+static void cb_find_for_replace(Editor *e, const char *input) {
+    if (!input || !*input) { editor_set_message(e, "No search term"); return; }
+    strncpy(s_find_search_term, input, sizeof(s_find_search_term) - 1);
+    s_find_search_term[sizeof(s_find_search_term) - 1] = '\0';
+    editor_start_minibuf(e, "Replace with: ", cb_replace_with);
+}
+
 static void cb_mx_command(Editor *e, const char *input) {
+    Buffer *buf = editor_current_buffer(e);
     if (strcmp(input, "eval-js") == 0) {
         /* Bare "eval-js" with no code: show usage hint */
         editor_set_message(e, "Usage: M-x eval-js <js-code>  e.g.: eval-js 1+2");
@@ -81,6 +115,28 @@ static void cb_mx_command(Editor *e, const char *input) {
         char result[512] = {0};
         script_eval(e->js_ctx, input + 8, result, sizeof(result));
         editor_set_message(e, "JS: %s", result);
+    } else if (strcmp(input, "set-mark") == 0) {
+        if (buf) { buffer_set_mark(buf); editor_set_message(e, "Mark set"); }
+    } else if (strcmp(input, "kill-region") == 0) {
+        if (buf && buf->mark_active) {
+            buffer_kill_region(buf, &e->kill_ring);
+            editor_set_message(e, "Killed region");
+        } else {
+            editor_set_message(e, "No mark set");
+        }
+    } else if (strcmp(input, "copy-region") == 0) {
+        if (buf && buf->mark_active) {
+            buffer_copy_region(buf, &e->kill_ring);
+            editor_set_message(e, "Region copied");
+        } else {
+            editor_set_message(e, "No mark set");
+        }
+    } else if (strcmp(input, "yank") == 0) {
+        if (buf) buffer_yank(buf, e->kill_ring);
+    } else if (strcmp(input, "find") == 0) {
+        editor_start_minibuf(e, "Find: ", cb_find);
+    } else if (strcmp(input, "replace") == 0) {
+        editor_start_minibuf(e, "Find: ", cb_find_for_replace);
     } else {
         editor_set_message(e, "Unknown command: %s", input);
     }
@@ -216,6 +272,17 @@ static void handle_meta_key(Editor *e, int key) {
             buf->modified = 1;
         }
         break;
+    case 'w': /* M-w: copy region */
+        if (buf && buf->mark_active) {
+            buffer_copy_region(buf, &e->kill_ring);
+            editor_set_message(e, "Region copied");
+        } else {
+            editor_set_message(e, "No mark set");
+        }
+        break;
+    case '%': /* M-%: find and replace */
+        editor_start_minibuf(e, "Find: ", cb_find_for_replace);
+        break;
     default:
         editor_set_message(e, "M-%c is undefined", key);
         break;
@@ -348,6 +415,21 @@ void handle_key(Editor *e, int key) {
         break;
     case CTRL('y'):
         buffer_yank(buf, e->kill_ring);
+        break;
+    case CTRL('w'): /* C-w: cut (kill) region */
+        if (buf->mark_active) {
+            buffer_kill_region(buf, &e->kill_ring);
+            editor_set_message(e, "Killed region");
+        } else {
+            editor_set_message(e, "No mark set");
+        }
+        break;
+    case CTRL('s'): /* C-s: find (search forward) */
+        editor_start_minibuf(e, "Find: ", cb_find);
+        break;
+    case 0: /* C-SPC / C-@: set mark */
+        buffer_set_mark(buf);
+        editor_set_message(e, "Mark set");
         break;
     case '\t':
         buffer_insert_char(buf, '\t');
