@@ -5,6 +5,7 @@
 
 #define INITIAL_LINES 64
 #define INITIAL_LINE_CAP 16
+#define MAX_LINE_LENGTH 4096
 
 Buffer *buffer_create(const char *name) {
     Buffer *buf = calloc(1, sizeof(Buffer));
@@ -227,7 +228,7 @@ int buffer_load_file(Buffer *buf, const char *filename) {
     for (int i = 0; i < buf->num_lines; i++) free(buf->lines[i]);
     buf->num_lines = 0;
 
-    char linebuf[4096];
+    char linebuf[MAX_LINE_LENGTH];
     while (fgets(linebuf, sizeof(linebuf), f)) {
         /* Strip trailing newline */
         int len = (int)strlen(linebuf);

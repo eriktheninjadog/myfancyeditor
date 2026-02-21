@@ -13,6 +13,9 @@
 #include <errno.h>
 #include <stdio.h>
 
+#define DEFAULT_TERM_ROWS 24
+#define DEFAULT_TERM_COLS 80
+
 Buffer *shell_buf_create(Editor *e, const char *shell) {
     static int shell_count = 0;
     char bufname[64];
@@ -24,8 +27,8 @@ Buffer *shell_buf_create(Editor *e, const char *shell) {
     buf->is_shell = 1;
 
     struct winsize ws;
-    ws.ws_row = (unsigned short)(e->edit_height > 0 ? e->edit_height : 24);
-    ws.ws_col = (unsigned short)(e->edit_width > 0 ? e->edit_width : 80);
+    ws.ws_row = (unsigned short)(e->edit_height > 0 ? e->edit_height : DEFAULT_TERM_ROWS);
+    ws.ws_col = (unsigned short)(e->edit_width > 0 ? e->edit_width : DEFAULT_TERM_COLS);
     ws.ws_xpixel = 0;
     ws.ws_ypixel = 0;
 

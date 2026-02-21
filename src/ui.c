@@ -9,6 +9,14 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#define MODELINE_BUF_SIZE 1024
+/* prompt (max 128) + input (max 512) + nul */
+#define MINIBUF_DISPLAY_SIZE (128 + 512 + 1)
+/* Raw escape-sequence buffer: up to 3 bytes + null terminator */
+#define RAW_KEY_BUF_SIZE 4
+/* Max line length when reading files */
+#define MAX_LINE_LENGTH 4096
+
 void ui_init(Editor *e) {
     initscr();
     cbreak();
@@ -144,8 +152,7 @@ void ui_draw_modeline(Editor *e) {
     wbkgd(e->modeline_win, COLOR_PAIR(COLOR_MODELINE) | A_REVERSE);
     wattron(e->modeline_win, COLOR_PAIR(COLOR_MODELINE) | A_REVERSE);
 
-    /* Use a buffer large enough for any terminal width (max 1024) */
-    char modeline[1024];
+    char modeline[MODELINE_BUF_SIZE];
     if (buf) {
         const char *fname = buf->filename ? buf->filename : "no file";
         const char *mod   = buf->modified ? "**" : "--";
@@ -178,8 +185,7 @@ void ui_draw_minibuf(Editor *e) {
     werase(e->minibuf_win);
 
     if (e->minibuf_active) {
-        /* prompt (max 128) + input (max 512) + nul = 641; use 700 */
-        char display[700];
+        char display[MINIBUF_DISPLAY_SIZE];
         snprintf(display, sizeof(display), "%s%s",
                  e->minibuf_prompt, e->minibuf_input);
         mvwaddnstr(e->minibuf_win, 0, 0, display, COLS - 1);

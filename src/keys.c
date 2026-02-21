@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <unistd.h>
 
+/* Escape-sequence raw buffer: up to 3 bytes + null terminator */
+#define RAW_KEY_BUF_SIZE 4
+
 /* Forward declarations for minibuf callbacks */
 static void cb_find_file(Editor *e, const char *input);
 static void cb_switch_buffer(Editor *e, const char *input);
@@ -240,7 +243,7 @@ void handle_key(Editor *e, int key) {
 
     /* Shell buffer: send raw input to pty (except C-x) */
     if (buf->is_shell && buf->pty_fd >= 0) {
-        char raw[4];
+        char raw[RAW_KEY_BUF_SIZE];
         int rawlen = 0;
         int passthru = 1;
 
