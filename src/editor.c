@@ -27,6 +27,7 @@ Editor *editor_create(void) {
             ";; Welcome to myfancyeditor\n"
             ";; C-x C-f: open file  C-x C-s: save  C-x b: switch buffer\n"
             ";; C-x C-c: quit       C-x s: shell   M-x: execute command\n"
+            ";; C-x e: run macro    M-x run: run buffer as JS\n"
             ";; F1: help\n");
         scratch->modified = 0;
         e->buffers[e->num_buffers++] = scratch;

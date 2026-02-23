@@ -265,6 +265,36 @@ duk_context *script_init(Editor *e) {
     return ctx;
 }
 
+int script_eval_buffer(duk_context *ctx, Buffer *buf, char *result, int result_len) {
+    if (!ctx || !buf) return -1;
+
+    /* Compute total length of all lines joined by newlines */
+    size_t total = 0;
+    for (int i = 0; i < buf->num_lines; i++) {
+        total += strlen(buf->lines[i]) + 1; /* +1 for '\n' or '\0' */
+    }
+
+    char *code = malloc(total + 1);
+    if (!code) {
+        if (result) snprintf(result, result_len, "Error: out of memory");
+        return -1;
+    }
+
+    size_t pos = 0;
+    for (int i = 0; i < buf->num_lines; i++) {
+        size_t len = strlen(buf->lines[i]);
+        memcpy(code + pos, buf->lines[i], len);
+        pos += len;
+        if (i < buf->num_lines - 1)
+            code[pos++] = '\n';
+    }
+    code[pos] = '\0';
+
+    int rc = script_eval(ctx, code, result, result_len);
+    free(code);
+    return rc;
+}
+
 void script_destroy(duk_context *ctx) {
     if (ctx) duk_destroy_heap(ctx);
 }
